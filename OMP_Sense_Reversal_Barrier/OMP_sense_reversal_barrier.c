@@ -12,6 +12,7 @@ void OMP_sense_reversal_setup(int threads)
 	return;
 }
 
+
 void OMP_sense_reversal_barrier(int *local_sense, int *sense)
 {
 	int local_count;
