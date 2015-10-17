@@ -71,11 +71,12 @@ int main( int argc, char** argv){
 		float sum=0.0, thread_avg=0.0; t=0;
 		while(t<NUMTHREADS){
 			b=0;
+			sum = 0.0
 			while(b<NUMBARRIERS){
 				sum = sum + (threadEndTime[b][t] - threadStartTime[b][t]);
 				b++;
 			}
-			thread_avg = sum / (float)NUMBARRIERS;
+			thread_avg += sum / (float)NUMBARRIERS;
 			t++;
 		}
 

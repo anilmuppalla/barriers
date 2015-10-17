@@ -3,6 +3,7 @@
 #include <math.h>
 #include "MPI_tournament_barrier.h"
 
+
 typedef enum roles {
 	WINNER,
 	LOSER,
@@ -38,7 +39,7 @@ void MPI_tournament_setup(MPI_Comm comm)
 	sense = 0;
 	total_rounds = ceil(log2(num_processes)) + 1;
 	
-	printf("Starting process %d of %d in node : %s\n", process_id, num_processes, processor_name);
+	//printf("Starting process %d of %d in node : %s\n", process_id, num_processes, processor_name);
 
 	rounds = (round_t **) malloc (num_processes * sizeof(round_t *));
 

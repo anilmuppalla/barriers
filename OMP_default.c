@@ -47,7 +47,7 @@ int main( int argc, char** argv){
 				sum = sum + (threadEndTime[b][t] - threadStartTime[b][t]);
 				b++;
 			}
-			thread_avg = sum / (float)NUMBARRIERS;
+			thread_avg += sum /(float)NUMBARRIERS;
 			t++;
 		}
 
