@@ -1,5 +1,8 @@
 #undef MPI_OMP_COMBINED
-#define MPI_TOURNAMENT
+#undef MPI_TOURNAMENT
+#undef MPI_SENSE_REVERSAL
+#undef OMP_DISSEMINATION
+#define OMP_SENSE_REVERSAL
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,18 +12,31 @@
 #include "OMP_dissemination_barrier.h"
 #endif
 
+#ifdef OMP_DISSEMINATION
+#include "OMP_dissemination_barrier.h"
+#endif
+
 #ifdef MPI_TOURNAMENT
 #include "MPI_tournament_barrier.h"
+#endif
+
+#ifdef MPI_SENSE_REVERSAL
+#include "MPI_sense_reversal_barrier.h"
+#endif
+
+#ifdef OMP_SENSE_REVERSAL
+#include "OMP_sense_reversal_barrier.h"
 #endif
 
 int main(int argc, char *argv[])
 {
 
-  int sense = 0;
+  int sense = 1;
   int threads, barriers;
   int j,k;
+  int rank;
 
-#ifdef MPI_OMP_COMBINED
+#if defined(MPI_OMP_COMBINED) || defined(OMP_DISSEMINATION) || defined(OMP_SENSE_REVERSAL)
   threads = atoi(argv[1]);
   barriers = atoi(argv[2]);
 
@@ -33,22 +49,36 @@ int main(int argc, char *argv[])
   	threadStartTime[j] = (double *)malloc (barriers * sizeof(double));
 	threadEndTime[j] = (double *)malloc (barriers * sizeof(double));
   }
-
+#ifdef MPI_OMP_COMBINED
+  MPI_Comm_size(MPI_COMM_WORLD, &rank);
   MPI_combined_barrier_setup(MPI_COMM_WORLD, threads);
 #endif
+#ifdef OMP_DISSEMINATION
+  OMP_dissemination_setup(threads);
+#endif
+#ifdef OMP_SENSE_REVERSAL
+  OMP_sense_reversal_setup(threads);
+#endif
+#endif
 
-#ifdef MPI_TOURNAMENT
+#if defined(MPI_TOURNAMENT) || defined(MPI_SENSE_REVERSAL)
   barriers = atoi(argv[1]);
 
   double *threadStartTime, *threadEndTime, average, sum;
 
   threadStartTime = (double *)malloc (barriers * sizeof(double));
   threadEndTime = (double *)malloc (barriers * sizeof(double));
-
+#ifdef MPI_SENSE_REVERSAL
+  MPI_Comm_size(MPI_COMM_WORLD, &rank);
+  MPI_sense_reversal_setup(MPI_COMM_WORLD);
+#endif
+#ifdef MPI_TOURNAMENT
+  MPI_Comm_size(MPI_COMM_WORLD, &rank);
   MPI_tournament_setup(MPI_COMM_WORLD);
 #endif
+#endif
 
-#ifdef MPI_OMP_COMBINED
+#if defined(MPI_OMP_COMBINED) || defined(OMP_DISSEMINATION) || defined(OMP_SENSE_REVERSAL)
   #pragma omp parallel num_threads(threads) shared(sense)
   {
 #endif
@@ -63,19 +93,34 @@ int main(int argc, char *argv[])
 		MPI_combined_barrier(&thread_sense,&parity,&sense);
 		threadEndTime[omp_get_thread_num()][i] = omp_get_wtime();
 #endif
+#ifdef OMP_DISSEMINATION
+		threadStartTime[omp_get_thread_num()][i] = omp_get_wtime();
+		OMP_dissemination_barrier(&thread_sense,&parity);
+		threadEndTime[omp_get_thread_num()][i] = omp_get_wtime();
+#endif
+#ifdef OMP_SENSE_REVERSAL
+		threadStartTime[omp_get_thread_num()][i] = omp_get_wtime();
+		OMP_sense_reversal_barrier(&thread_sense,&sense);
+		threadEndTime[omp_get_thread_num()][i] = omp_get_wtime();
+#endif
 #ifdef MPI_TOURNAMENT
 		threadStartTime[i] = MPI_Wtime();
 		MPI_tournament_barrier();
 		threadEndTime[i] = MPI_Wtime();
 #endif
-		
+#ifdef MPI_SENSE_REVERSAL
+		threadStartTime[i] = MPI_Wtime();
+		MPI_sense_reversal_barrier();
+		threadEndTime[i] = MPI_Wtime();
+#endif
+
 	}
-#if MPI_OMP_COMBINED
+#if defined(MPI_OMP_COMBINED) || defined(OMP_DISSEMINATION) || defined(OMP_SENSE_REVERSAL)
   }
 #endif
   average = 0;
 
-#ifdef MPI_OMP_COMBINED
+#if defined(MPI_OMP_COMBINED) || defined(OMP_DISSEMINATION) || defined(OMP_SENSE_REVERSAL)
   for (j=0;j<threads;j++) {
   	sum = 0;
   	for (k=0;k<barriers;k++)
@@ -83,11 +128,18 @@ int main(int argc, char *argv[])
 	average += (sum / barriers);
   }
   average = average / threads;
-
+#ifdef MPI_OMP_COMBINED
   printf("MPIOMP_Combined_Barrier: Threads: %d Barriers: %d Average: %lf\n",threads, barriers, average);
 #endif
+#ifdef OMP_DISSEMINATION
+  printf("OMP_Dissemination_Barrier: Threads: %d Barriers: %d Average: %lf\n",threads, barriers, average);
+#endif
+#ifdef OMP_SENSE_REVERSAL
+  printf("OMP_Sense_Reversal_Barrier: Threads: %d Barriers: %d Average: %lf\n",threads, barriers, average);
+#endif
+#endif
 
-#ifdef MPI_TOURNAMENT
+#if defined(MPI_TOURNAMENT) || defined(MPI_SENSE_REVERSAL)
 	sum = 0;
 
 	for (j=0;j<barriers;j++) {
@@ -95,10 +147,15 @@ int main(int argc, char *argv[])
 	}
 
 	average = (sum / barriers);
-	printf("MPI_Tournament_Barrier: Barriers: %d Average: %lf\n",barriers, average);
+#ifdef MPI_TOURNAMENT
+	printf("MPI_Tournament_Barrier: Processes: %d Barriers: %d Average: %lf\n",rank,barriers, average);
+#endif
+#ifdef MPI_SENSE_REVERSAL
+	printf("MPI_Sense_Reversal_Barrier: Processes: %d Barriers: %d Average: %lf\n",rank,barriers, average);
+#endif
 #endif
 
-#ifdef MPI_OMP_COMBINED
+#if defined(MPI_OMP_COMBINED) || defined(OMP_DISSEMINATION) || defined(OMP_SENSE_REVERSAL)
   for (j=0; j<threads; j++) {
   	free(threadStartTime[j]);
 	free(threadEndTime[j]);
@@ -113,8 +170,17 @@ int main(int argc, char *argv[])
 #ifdef MPI_OMP_COMBINED
   MPI_combined_barrier_end();
 #endif
+#ifdef OMP_DISSEMINATION
+  OMP_dissemination_end();
+#endif
+#ifdef OMP_SENSE_REVERSAL
+  OMP_sense_reversal_end();
+#endif
 #ifdef MPI_TOURNAMENT
   MPI_tournament_end();
+#endif
+#ifdef MPI_SENSE_REVERSAL
+  MPI_sense_reversal_end();
 #endif
 
   return 0;
