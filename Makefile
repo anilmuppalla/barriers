@@ -14,4 +14,4 @@ OMP_sensereveral.out: OMP_sensereversal.c
 	$(CC) -o $@ $(LDFLAGS) $^ $(OMPFLAGS)
 
 clean:
-	rm -f OMP_sensereveral.out OMP_default.out
+	rm -f OMP_sensereversal.out OMP_default.out
