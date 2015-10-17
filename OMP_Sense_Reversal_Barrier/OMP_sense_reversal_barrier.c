@@ -17,9 +17,10 @@ void OMP_sense_reversal_barrier(int *local_sense, int *sense)
 	int local_count;
 	*local_sense = !(*local_sense);
 
-	#pragma omp atomic capture
+	#pragma omp critical 
+	{
 	local_count = --count;
-
+	}
 	if (local_count == 0) {
 		count = NUM_THREADS;
 		*sense = *local_sense;
